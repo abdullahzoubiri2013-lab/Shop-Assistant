@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مساعد المتاجر والورش الذكي</title>
+    <style>
+        :root {
+            --bg-color: #131314;
+            --sidebar-bg: #1e1f20;
+            --chat-bg: #1e1f20;
+            --input-bg: #2b2c2f;
+            --text-color: #e3e3e3;
+            --text-secondary: #c4c7c5;
+            --accent: #8ab4f8;
+            --border: #333538;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-color); height: 100vh; display: flex; overflow: hidden; }
+
+        sidebar {
+            width: 280px; background-color: var(--sidebar-bg); border-left: 1px solid var(--border);
+            display: flex; flex-direction: column; transition: transform 0.3s ease;
+            position: absolute; height: 100%; z-index: 100; transform: translateX(100%);
+        }
+        sidebar.open { transform: translateX(0); }
+        .sidebar-header {
+            padding: 20px; font-size: 18px; font-weight: bold; color: var(--accent);
+            border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;
+        }
+        .sidebar-menu { padding: 15px; overflow-y: auto; flex-grow: 1; }
+        .menu-item {
+            padding: 12px 15px; margin-bottom: 8px; background-color: rgba(255,255,255,0.03);
+            border-radius: 8px; cursor: pointer; transition: 0.2s; color: var(--text-color); font-size: 14px;
+        }
+        .menu-item:hover { background-color: rgba(255,255,255,0.08); color: var(--accent); }
+
+        .menu-toggle {
+            position: fixed; top: 20px; right: 20px; background: var(--input-bg);
+            border: 1px solid var(--border); color: var(--text-color); padding: 10px 15px;
+            border-radius: 50%; cursor: pointer; z-index: 101; font-size: 18px; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .main-content { flex-grow: 1; display: flex; flex-direction: column; height: 100vh; position: relative; }
+        .chat-container { flex-grow: 1; overflow-y: auto; padding: 20px 20px 120px 20px; display: flex; flex-direction: column; align-items: center; }
+        .welcome-hero { text-align: center; margin-top: 15vh; max-width: 600px; }
+        .welcome-hero h1 { font-size: 38px; background: linear-gradient(45deg, #8ab4f8, #c58af9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 10px; }
+        .welcome-hero p { color: var(--text-secondary); font-size: 16px; }
+
+        .message { width: 100%; max-width: 800px; margin-bottom: 20px; padding: 15px 20px; border-radius: 12px; line-height: 1.6; font-size: 15px; white-space: pre-line; }
+        .user-msg { background-color: var(--input-bg); align-self: center; border: 1px solid var(--border); }
+        .ai-msg { background-color: var(--chat-bg); align-self: center; border-left: 4px solid var(--accent); }
+
+        .input-area { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); width: 100%; max-width: 750px; padding: 0 20px; }
+        .input-box {
+            background-color: var(--input-bg); border: 1px solid var(--border); border-radius: 30px;
+            display: flex; align-items: center; padding: 10px 20px; box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+        }
+        .input-box input { flex-grow: 1; background: transparent; border: none; color: var(--text-color); font-size: 16px; outline: none; padding: 5px; }
+        .input-box button {
+            background: var(--accent); color: #111; border: none; width: 40px; height: 40px;
+            border-radius: 50%; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; font-size: 18px;
+        }
+
+        .chat-img { width: 90px; height: 90px; object-fit: cover; border-radius: 8px; margin-top: 10px; cursor: pointer; border: 1px solid var(--border); }
+
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); z-index: 1000; justify-content: center; align-items: center; cursor: pointer;
+        }
+        .modal-overlay img { max-width: 90%; max-height: 90%; border-radius: 8px; }
+
+        .panel-modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 200; justify-content: center; align-items: center;
+        }
+        .panel-content {
+            background-color: var(--sidebar-bg); border: 1px solid var(--border); width: 100%;
+            max-width: 700px; padding: 30px; border-radius: 16px; max-height: 85vh; overflow-y: auto;
+        }
+        .panel-content h2 { color: var(--accent); margin-bottom: 20px; font-size: 20px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: var(--text-secondary); font-size: 13px; }
+        .form-group input { width: 100%; padding: 12px; background: var(--input-bg); border: 1px solid var(--border); border-radius: 8px; color: #fff; }
+        .btn-submit { background: var(--accent); color: #111; padding: 12px; border: none; width: 100%; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .close-btn { background: #ef4444; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; float: left; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 10px; text-align: right; border-bottom: 1px solid var(--border); font-size: 13px; }
+        th { color: var(--accent); }
+    </style>
+</head>
+<body>
+
+    <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+
+    <sidebar id="appSidebar">
+        <div class="sidebar-header">
+            <span>⚙️ لوحة التحكم</span>
+            <span style="cursor:pointer;" onclick="toggleSidebar()">✕</span>
+        </div>
+        <div class="sidebar-menu">
+            <div class="menu-item" onclick="openPanel('addModal')">➕ إضافة سلعة جديدة</div>
+            <div class="menu-item" onclick="openPanel('listModal')">📦 الاطلاع على جميع السلع</div>
+            <div class="menu-item" onclick="openPanel('chatHistoryModal')">💬 سجل المحادثات السابقة</div>
+            <div class="menu-item" onclick="openPanel('calcModal')">💰 حاسبة الحرفيين والمعاملات</div>
+        </div>
+    </sidebar>
+
+    <div class="main-content">
+        <div class="chat-container" id="chatContainer">
+            <div class="welcome-hero" id="welcomeHero">
+                <h1>من أين نبدأ؟</h1>
+                <p>اسألني عن أي سلعة في مخزونك، وسأمدك بكافة التفاصيل والكميات فوراً.</p>
+            </div>
+        </div>
+
+        <div class="input-area">
+            <div class="input-box">
+                <input type="text" id="userQuery" placeholder="اسأل المساعد الذكي عن أي سلعة أو سعر..." onkeypress="handleKeyPress(event)">
+                <button onclick="askAI()">⬆</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- لوحة إضافة سلعة -->
+    <div class="panel-modal" id="addModal">
+        <div class="panel-content">
+            <button class="close-btn" onclick="closePanel('addModal')">إغلاق</button>
+            <h2>➕ إضافة سلعة جديدة للمخزون</h2>
+            <form action="/add_product" method="POST" enctype="multipart/form-data">
+                <div class="form-group"><label>اسم السلعة</label><input type="text" name="name" required></div>
+                <div class="form-group"><label>التصنيف</label><input type="text" name="category"></div>
+                <div class="form-group"><label>السعر</label><input type="number" step="0.01" name="price" required></div>
+                <div class="form-group"><label>الكمية المتاحة</label><input type="number" name="quantity" required></div>
+                <div class="form-group"><label>حد التنبيه (أقل كمية)</label><input type="number" name="min_stock" value="2" required></div>
+                <div class="form-group"><label>صورة السلعة</label><input type="file" name="image"></div>
+                <button type="submit" class="btn-submit">حفظ السلعة</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- لوحة عرض جميع السلع -->
+    <div class="panel-modal" id="listModal">
+        <div class="panel-content" style="max-width: 750px;">
+            <button class="close-btn" onclick="closePanel('listModal')">إغلاق</button>
+            <h2>📦 السلع المسجلة في المخزون</h2>
+            <table>
+                <thead><tr><th>الصورة</th><th>الاسم</th><th>السعر</th><th>المتبقي</th><th>إجراء</th></tr></thead>
+                <tbody>
+                    {% for p in products %}
+                    <tr>
+                        <td>
+                            {% if p.image_path %}
+                                <img src="{{ url_for('static', filename=p.image_path) }}" width="40" height="40" style="object-fit:cover; border-radius:4px; cursor:pointer;" onclick="openLightbox('/static/{{ p.image_path }}')">
+                            {% else %}
+                                <span style="color:#777;">بدون</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ p.name }}</td>
+                        <td>{{ p.price }}</td>
+                        <td><strong>{{ p.quantity }}</strong></td>
+                        <td><a href="/delete_product/{{ p.id }}" style="color: #ef4444; text-decoration: none; font-weight: bold;" onclick="return confirm('هل أنت متأكد من الحذف؟')">حذف</a></td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" style="text-align: center; color: #777;">لا توجد سلع مضافة.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- لوحة سجل المحادثات السابقة -->
+    <div class="panel-modal" id="chatHistoryModal">
+        <div class="panel-content" style="max-width: 750px;">
+            <button class="close-btn" onclick="closePanel('chatHistoryModal')">إغلاق</button>
+            <h2>💬 سجل المحادثات السابقة مع المساعد</h2>
+            <table>
+                <thead><tr><th>السؤال</th><th>الإجابة</th><th>الوقت</th></tr></thead>
+                <tbody>
+                    {% for chat in chat_history %}
+                    <tr>
+                        <td style="font-weight: bold; color: var(--accent);">{{ chat.question }}</td>
+                        <td>{{ chat.answer }}</td>
+                        <td style="font-size: 11px; color: #888;">{{ chat.timestamp }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="3" style="text-align: center; color: #777;">لا توجد محادثات مسجلة حتى الآن.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- لوحة حاسبة الحرفيين والمعاملات -->
+    <div class="panel-modal" id="calcModal">
+        <div class="panel-content" style="max-width: 800px;">
+            <button class="close-btn" onclick="closePanel('calcModal')">إغلاق</button>
+            <h2>💰 حاسبة الحرفيين وسجل المعاملات والأرباح</h2>
+            <div style="background: rgba(138, 180, 248, 0.1); padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--accent);">
+                <h3 style="color: var(--accent); font-size: 16px; margin-bottom: 5px;">إجمالي الأرباح المحققة:</h3>
+                <p style="font-size: 24px; font-weight: bold; color: #4ade80;">{{ total_profit }} د.ل</p>
+            </div>
+            
+            <form action="/add_transaction" method="POST" style="margin-bottom: 25px; background: #252628; padding: 15px; border-radius: 8px;">
+                <h3 style="font-size: 15px; color: var(--accent); margin-bottom: 10px;">تسجيل معاملة إصلاح جديدة للزبون</h3>
+                <div class="form-group"><label>اسم الزبون</label><input type="text" name="client_name" required></div>
+                <div class="form-group"><label>وصف الإصلاح / الخدمة</label><input type="text" name="service_description" required></div>
+                <div class="form-group"><label>إجمالي التكلفة المطلوبة</label><input type="number" step="0.01" name="cost" required></div>
+                <div class="form-group"><label>صافي الربح المحقق</label><input type="number" step="0.01" name="profit" required></div>
+                <button type="submit" class="btn-submit">حفظ المعاملة وإضافتها للسجل</button>
+            </form>
+
+            <h3 style="font-size: 15px; margin-bottom: 10px;">سجل المعاملات السابق:</h3>
+            <table>
+                <thead><tr><th>الزبون</th><th>الخدمة</th><th>الإجمالي</th><th>الربح</th><th>التاريخ</th></tr></thead>
+                <tbody>
+                    {% for t in transactions %}
+                    <tr>
+                        <td>{{ t.client_name }}</td>
+                        <td>{{ t.service_description }}</td>
+                        <td>{{ t.cost }}</td>
+                        <td style="color: #4ade80; font-weight: bold;">+{{ t.profit }}</td>
+                        <td style="font-size: 11px; color: #888;">{{ t.date }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" style="text-align: center; color: #777;">لا توجد معاملات مسجلة.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="lightboxModal" onclick="closeLightbox()">
+        <img id="lightboxImg" src="">
+    </div>
+
+    <script>
+        function toggleSidebar() { document.getElementById('appSidebar').classList.toggle('open'); }
+        function openPanel(id) { document.getElementById(id).style.display = 'flex'; toggleSidebar(); }
+        function closePanel(id) { document.getElementById(id).style.display = 'none'; }
+        function openLightbox(src) { document.getElementById('lightboxImg').src = src; document.getElementById('lightboxModal').style.display = 'flex'; }
+        function closeLightbox() { document.getElementById('lightboxModal').style.display = 'none'; }
+        function handleKeyPress(e) { if (e.key === 'Enter') askAI(); }
+
+        function askAI() {
+            let queryInput = document.getElementById('userQuery');
+            let query = queryInput.value.trim();
+            if(!query) return;
+
+            let hero = document.getElementById('welcomeHero');
+            if(hero) hero.style.display = 'none';
+
+            let chatContainer = document.getElementById('chatContainer');
+            let userMsgDiv = document.createElement('div');
+            userMsgDiv.className = 'message user-msg';
+            userMsgDiv.innerText = query;
+            chatContainer.appendChild(userMsgDiv);
+
+            queryInput.value = '';
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            let formData = new FormData();
+            formData.append('query', query);
+
+            fetch('/chat', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                let aiMsgDiv = document.createElement('div');
+                aiMsgDiv.className = 'message ai-msg';
+                
+                let htmlContent = data.answer.replace(/\n/g, '<br>');
+                
+                if(data.product && data.product.image_path) {
+                    htmlContent += `<br><img src="/static/${data.product.image_path}" class="chat-img" onclick="openLightbox('/static/${data.product.image_path}')">`;
+                }
+                
+                if(data.products_list && data.products_list.length > 0) {
+                    htmlContent += `<div style="display: flex; gap: 15px; margin-top: 12px; flex-wrap: wrap;">`;
+                    data.products_list.forEach(p => {
+                        if(p.image_path) {
+                            htmlContent += `<div style="text-align: center;"><span style="font-size:11px; display:block; color:var(--accent);">${p.name}</span><img src="/static/${p.image_path}" class="chat-img" onclick="openLightbox('/static/${p.image_path}')"></div>`;
+                        }
+                    });
+                    htmlContent += `</div>`;
+                }
+                
+                aiMsgDiv.innerHTML = htmlContent;
+                chatContainer.appendChild(aiMsgDiv);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            });
+        }
+    </script>
+</body>
+</html>
